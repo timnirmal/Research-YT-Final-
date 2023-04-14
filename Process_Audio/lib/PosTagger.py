@@ -63,19 +63,19 @@ class POSTagger(Tagger):
         return features
 
 
-document = 'ගරසරප චිත්‍රපට පහල තියෙ සම්බන්ධක එක  බාගත කරග ඇතැම් වෛරස් රෝග වලට වැක්සීන හෙවත් එන්නත් ද වෛරස් නාශක ඖෂධ ද ' \
-           'තිබුනද සියලූ‍ වෛරස් සම්බන්ධයෙන් ඒ න්‍යාය වැඩ කරන්නේ නැත. වසූරිය වෛරසය මිනිසා විසින් මිහිමතින් තුරන් කර ' \
-           'තිබේ.'
+# document = 'ගරසරප චිත්‍රපට පහල තියෙ සම්බන්ධක එක  බාගත කරග ඇතැම් වෛරස් රෝග වලට වැක්සීන හෙවත් එන්නත් ද වෛරස් නාශක ඖෂධ ද ' \
+#            'තිබුනද සියලූ‍ වෛරස් සම්බන්ධයෙන් ඒ න්‍යාය වැඩ කරන්නේ නැත. වසූරිය වෛරසය මිනිසා විසින් මිහිමතින් තුරන් කර ' \
+#            'තිබේ.'
 
-tokenized_sentences = [tokenizer.tokenize(f'{ss}.') for ss in tokenizer.split_sentences(document)]
-print(tokenized_sentences)
+# tokenized_sentences = [tokenizer.tokenize(f'{ss}.') for ss in tokenizer.split_sentences(document)]
+# print(tokenized_sentences)
 tagger = POSTagger()
 
-pos_tags = tagger.predict(tokenized_sentences)
-
-for sent in pos_tags:
-    print('------------------')
-    print(sent)
+# pos_tags = tagger.predict(tokenized_sentences)
+#
+# for sent in pos_tags:
+#     print('------------------')
+#     print(sent)
 
 def get_pos_tags(text: str) -> List[Tuple[str, str]]:
     tokenized_sentences = [tokenizer.tokenize(f'{ss}.') for ss in tokenizer.split_sentences(text)]

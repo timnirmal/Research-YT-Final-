@@ -263,10 +263,10 @@ def read_text_file(file_path):
 
 
 def process_data(file_path):
-    print(read_text_file(file_path))
-
+    data = read_text_file(file_path)
+    print("Original text:", data, '\n')
     # split text into sentences
-    sentences = sent_tokenize(read_text_file(file_path))
+    sentences = sent_tokenize(data)
     print(sentences, '\n')
 
     # remove stopwords
@@ -321,3 +321,66 @@ def process_data(file_path):
     print("English removed: ", english_removed, '\n')
 
     return english_removed
+
+
+
+def process_data_df(df):
+    # create a copy of the dataframe
+    df_new = df.copy()
+    # add a new column to the dataframe as a placeholder for the cleaned text
+    df_new['Text_cleaned'] = None
+
+    for index, row in df.iterrows():
+        # split text into sentences
+        sentences = sent_tokenize(row['comment'])
+        print("Sentences: ", sentences, '\n')
+
+        # remove stopwords
+        filtered_sentences = filter_stop_words(sentences)
+        print("Filtered sentences: ", filtered_sentences, '\n')
+
+        # detokenize
+        detokenized_sentences = Detokenioze(filtered_sentences)
+        print("Detokenized sentences: ", detokenized_sentences, '\n')
+
+        # simplify
+        simplified_sentences = []
+        for sentence in detokenized_sentences:
+            simplified_sentences.append(simplify_sinhalese_text(sentence))
+        print("Simplified sentences: ", simplified_sentences, '\n')
+
+        # clean data
+        df_clean = pd.DataFrame(simplified_sentences, columns=['Text'])
+        df_clean = clean_data(df_clean)
+        cleaned_sentences = dataframe_to_list(df_clean)
+        print("Cleaned sentences: ", cleaned_sentences, '\n')
+
+        df = pd.DataFrame(simplified_sentences, columns=['Text'])
+        df = clean_data(df)
+
+        # save to csv
+        # df.to_csv('cleaned_data.csv', index=False)
+
+        fixed_sentences = []
+        for sentence in cleaned_sentences:
+            # vowel letter fixer
+            fixed_sentence = SinhaleseVowelLetterFixer.get_fixed_text(sentence)
+            fixed_sentences.append(fixed_sentence)
+        print(fixed_sentences, '\n')
+
+        # Translate to sinhala
+        translated_sentences = []
+        for sentence in fixed_sentences:
+            translated_sentences.append(EnglishToSinhalaTranslator.translate_to_sinhala(sentence))
+        print("Translated sentences: ", translated_sentences, '\n')
+
+        # Translate to english
+        english_removed = []
+        for sentence in translated_sentences:
+            english_removed.append(EnglishToSinhalaTranslator.remove_english_words(sentence))
+        print("English removed: ", english_removed, '\n')
+
+        # add to the dataframe
+        df_new.at[index, 'Text_cleaned'] = english_removed[0]
+
+    return df_new
