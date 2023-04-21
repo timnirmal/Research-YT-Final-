@@ -1,3 +1,4 @@
+import pandas as pd
 from google.cloud import storage
 from google.cloud import speech
 from pydub import AudioSegment
@@ -88,6 +89,51 @@ def google_transcribe_single(audio_file, bucket):
     return transcript
 
 
+def google_transcribe_single_df(audio_file, bucket, df):
+    # convert audio to text
+    gcs_uri = 'gs://' + bucket + '/' + audio_file
+    transcript = ''
+
+    client = speech.SpeechClient()
+    audio = speech.RecognitionAudio(uri=gcs_uri)
+    frame_rate = 44100
+
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=frame_rate,
+        language_code='si-LK',
+        enable_automatic_punctuation=True,
+        enable_word_time_offsets=True,
+        diarization_config=diarization_config,  # optional: Enable automatic punctuation
+    )
+
+    # Detects speech in the audio file
+    operation = client.long_running_recognize(config=config, audio=audio)  # asynchronous
+    response = operation.result(timeout=10000)
+
+    for result in response.results:
+        alternative = result.alternatives[0]
+        print("-" * 20)
+        print(alternative)
+        print("Transcript: {}".format(alternative.transcript))
+        print("Confidence: {}".format(alternative.confidence))
+
+        for word_info in alternative.words:
+            word = word_info.word
+            start_time = word_info.start_time
+            end_time = word_info.end_time
+
+            # print(f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}")
+            # df with concat
+            df = pd.concat([df, pd.DataFrame({'word': word, 'text': alternative.transcript, 'start_time': start_time.total_seconds(), 'end_time': end_time.total_seconds(), 'speaker': word_info.speaker_tag, 'confidence': alternative.confidence}, index=[0])], ignore_index=True)
+            print(df)
+
+        transcript += result.alternatives[0].transcript
+
+    print(transcript)
+    return transcript, df
+
+
 def write_transcripts(transcript_file, transcript):
     f = open(transcript_file, "w", encoding="utf-8")
     f.write(transcript)
@@ -122,12 +168,18 @@ prep_audio_file(audio_file)
 # # upload audio file to storage bucket
 upload_blob(bucket, "", audio_file, audio_file)
 
+# create dataframe word, text, start_time, end_time, speaker
+df = pd.DataFrame(columns=['word', 'start_time', 'end_time', 'speaker', 'text', 'confidence'])
+
 # create transcript
-transcript = google_transcribe_single(audio_file, bucket)
+transcript, df = google_transcribe_single_df(audio_file, bucket, df)
 transcript_file = audio_file.split('.')[0] + '.txt'
 
 write_transcripts(transcript_file, transcript)
 print(f'Transcript {transcript_file} created')
+
+# save df to csv
+df.to_csv(audio_file.split('.')[0] + '.csv', index=False)
 
 # remove audio file from bucket
 delete_blob(bucket, audio_file)
