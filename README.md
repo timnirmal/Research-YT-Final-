@@ -9,3 +9,10 @@ Turn on Developer Mode
 
 
 choco install ffmpeg
+
+
+
+!pip install cmake
+!pip install dlib
+
+pip install fasttext_win

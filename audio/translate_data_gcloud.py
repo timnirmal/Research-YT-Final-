@@ -40,11 +40,6 @@ def upload_blob(bucket_name, audio_path, audio_file, destination_blob_name):
     print('File upload complete')
     return
 
-diarization_config = speech.SpeakerDiarizationConfig(
-    enable_speaker_diarization=True,
-    min_speaker_count=5,
-    max_speaker_count=20,
-)
 
 def google_transcribe_single(audio_file, bucket):
     # convert audio to text
@@ -54,6 +49,12 @@ def google_transcribe_single(audio_file, bucket):
     client = speech.SpeechClient()
     audio = speech.RecognitionAudio(uri=gcs_uri)
     frame_rate = 44100
+
+    diarization_config = speech.SpeakerDiarizationConfig(
+        enable_speaker_diarization=True,
+        min_speaker_count=5,
+        max_speaker_count=20,
+    )
 
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -90,6 +91,13 @@ def google_transcribe_single(audio_file, bucket):
 
 
 def google_transcribe_single_df(audio_file, bucket, df):
+    diarization_config = speech.SpeakerDiarizationConfig(
+        enable_speaker_diarization=True,
+        min_speaker_count=5,
+        max_speaker_count=20,
+    )
+
+
     # convert audio to text
     gcs_uri = 'gs://' + bucket + '/' + audio_file
     transcript = ''
@@ -99,7 +107,7 @@ def google_transcribe_single_df(audio_file, bucket, df):
     frame_rate = 44100
 
     config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        encoding=speech.RecognitionConfig.AudioEncoding.FLAC,
         sample_rate_hertz=frame_rate,
         language_code='si-LK',
         enable_automatic_punctuation=True,
@@ -126,7 +134,6 @@ def google_transcribe_single_df(audio_file, bucket, df):
             # print(f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}")
             # df with concat
             df = pd.concat([df, pd.DataFrame({'word': word, 'text': alternative.transcript, 'start_time': start_time.total_seconds(), 'end_time': end_time.total_seconds(), 'speaker': word_info.speaker_tag, 'confidence': alternative.confidence}, index=[0])], ignore_index=True)
-            print(df)
 
         transcript += result.alternatives[0].transcript
 
@@ -156,32 +163,31 @@ def delete_blob(bucket_name, blob_name):
     print(f'Blob {blob_name} deleted')
     return
 
+def get_large_audio_transcription(audio_file):
+    bucket = "audio-store-audio-to-speach-reseach-1"
+    #
+    # # do only if file is .wav
+    # prep_audio_file(audio_file)
 
-# transcribe_audio_file("testme.flac")
+    # upload audio file to storage bucket
+    upload_blob(bucket, "", audio_file, audio_file)
 
-bucket = "audio-store-audio-to-speach-reseach-1"
-audio_file = "Ex05.wav"
+    # create dataframe word, text, start_time, end_time, speaker
+    df = pd.DataFrame(columns=['word', 'start_time', 'end_time', 'speaker', 'text', 'confidence'])
 
-# do only if file is .wav
-prep_audio_file(audio_file)
+    # create transcript
+    transcript, df = google_transcribe_single_df(audio_file, bucket, df)
+    transcript_file = audio_file.split('.')[0] + '.txt'
 
-# # upload audio file to storage bucket
-upload_blob(bucket, "", audio_file, audio_file)
+    write_transcripts(transcript_file, transcript)
+    print(f'Transcript {transcript_file} created')
 
-# create dataframe word, text, start_time, end_time, speaker
-df = pd.DataFrame(columns=['word', 'start_time', 'end_time', 'speaker', 'text', 'confidence'])
+    # remove confidence 0.0
+    df = df[df['confidence'] != 0.0]
+    # save df to csv
+    df.to_csv(audio_file.split('.')[0] + '.csv', index=False)
 
-# create transcript
-transcript, df = google_transcribe_single_df(audio_file, bucket, df)
-transcript_file = audio_file.split('.')[0] + '.txt'
+    # remove audio file from bucket
+    delete_blob(bucket, audio_file)
 
-write_transcripts(transcript_file, transcript)
-print(f'Transcript {transcript_file} created')
-
-# remove confidence 0.0
-df = df[df['confidence'] != 0.0]
-# save df to csv
-df.to_csv(audio_file.split('.')[0] + '.csv', index=False)
-
-# remove audio file from bucket
-delete_blob(bucket, audio_file)
+    return transcript, df
